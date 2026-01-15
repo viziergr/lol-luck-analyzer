@@ -1,0 +1,29 @@
+{
+    "name": "lol-luck-analyzer",
+    "version": "1.0.0",
+    "description": "League of Legends Luck Analyzer - Analyse les performances et la chance des joueurs",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "node server.js",
+        "test": "jest"
+    },
+    "keywords": [
+        "league-of-legends",
+        "riot-api",
+        "statistics",
+        "performance-analyzer"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.18.2",
+        "axios": "^1.6.0",
+        "dotenv": "^16.3.1",
+        "cors": "^2.8.5",
+        "node-cache": "^5.1.2"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0"
+    }
+}
