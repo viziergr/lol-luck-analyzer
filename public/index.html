@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LoL Luck Analyzer - Analysez votre chance !</title>
-    <meta name="description" content="Analysez vos performances League of Legends et découvrez si vous êtes chanceux ou malchanceux !">
+    <meta name="description"
+        content="Analysez vos performances League of Legends et découvrez si vous êtes chanceux ou malchanceux !">
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="background-gradient"></div>
-    
+
     <header>
         <div class="container">
             <div class="header-content">
@@ -34,32 +37,16 @@
                     <div class="form-group">
                         <label for="gameName">Riot ID</label>
                         <div class="riot-id-input">
-                            <input 
-                                type="text" 
-                                id="gameName" 
-                                placeholder="GameName"
-                                required
-                            >
+                            <input type="text" id="gameName" placeholder="GameName" required>
                             <span class="separator">#</span>
-                            <input 
-                                type="text" 
-                                id="tagLine" 
-                                placeholder="TAG"
-                                required
-                            >
+                            <input type="text" id="tagLine" placeholder="TAG" required>
                         </div>
                         <small>Ex: Faker#KR1</small>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="matchCount">Nombre de parties à analyser</label>
-                        <input 
-                            type="number" 
-                            id="matchCount" 
-                            value="20" 
-                            min="5" 
-                            max="100"
-                        >
+                        <input type="number" id="matchCount" value="20" min="5" max="100">
                     </div>
 
                     <button type="submit" class="btn btn-primary" id="analyzeBtn">
@@ -149,13 +136,21 @@
         </section>
     </main>
 
-    <footer>
-        <div class="container">
-            <p>LoL Luck Analyzer - Propulsé par Riot API</p>
-            <small>Ce site n'est pas affilié à Riot Games</small>
+    <!-- Modal pour les détails de partie -->
+    <div id="matchModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Détails de la partie</h2>
+            <div id="matchDetails"></div>
         </div>
+    </div>
+
+    <footer>
+        <p>LoL Luck Analyzer - Analysez votre chance !</p>
+        <p>Données fournies par l'API Riot Games</p>
     </footer>
 
     <script src="js/app.js"></script>
 </body>
+
 </html>

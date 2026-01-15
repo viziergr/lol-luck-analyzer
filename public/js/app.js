@@ -4,7 +4,8 @@ const API_URL = window.location.origin;
 // État de l'application
 const state = {
     players: [],
-    currentAnalysis: null
+    currentAnalysis: null,
+    matchHistory: [] // Stocker l'historique pour le modal
 };
 
 // Elements DOM
@@ -16,11 +17,22 @@ const loadingState = document.getElementById('loadingState');
 const loadingDetails = document.getElementById('loadingDetails');
 const resultsSection = document.getElementById('resultsSection');
 const comparisonSection = document.getElementById('comparisonSection');
+const matchModal = document.getElementById('matchModal');
+const matchDetails = document.getElementById('matchDetails');
+const modalClose = document.querySelector('.modal-close');
 
 // Event Listeners
 searchForm.addEventListener('submit', handleAnalyze);
 addPlayerBtn.addEventListener('click', handleAddPlayer);
 compareBtn.addEventListener('click', handleCompare);
+
+// Modal event listeners
+modalClose.addEventListener('click', closeModal);
+window.addEventListener('click', (e) => {
+    if (e.target === matchModal) {
+        closeModal();
+    }
+});
 
 // Analyser un joueur
 async function handleAnalyze(e) {
@@ -202,12 +214,15 @@ function displayResults(data) {
 function displayMatchHistory(matches) {
     const matchHistory = document.getElementById('matchHistory');
 
-    matchHistory.innerHTML = matches.slice(0, 15).map(match => {
+    // Stocker l'historique dans le state pour le modal
+    state.matchHistory = matches;
+
+    matchHistory.innerHTML = matches.slice(0, 15).map((match, index) => {
         const performancePercent = match.playerPerformance;
         const winClass = match.won ? 'win' : 'loss';
 
         return `
-            <div class="match-item ${winClass}">
+            <div class="match-item ${winClass}" onclick="showMatchDetails(${index})">
                 <div class="match-info">
                     <span class="champion-name">${match.champion}</span>
                     <span class="kda">${match.kda}</span>
@@ -327,3 +342,92 @@ function hideResults() {
     resultsSection.style.display = 'none';
     comparisonSection.style.display = 'none';
 }
+
+// Modal functions
+function showMatchDetails(matchIndex) {
+    const match = state.matchHistory[matchIndex];
+    if (!match || !match.allPlayers) {
+        alert('Détails de la partie non disponibles');
+        return;
+    }
+
+    // Séparer les équipes
+    const blueTeam = match.allPlayers.filter(p => p.teamId === 100);
+    const redTeam = match.allPlayers.filter(p => p.teamId === 200);
+
+    const blueWon = blueTeam[0].win;
+    const redWon = redTeam[0].win;
+
+    // Générer le HTML du modal
+    matchDetails.innerHTML = `
+        <div class="match-header">
+            <h3>${match.won ? '✓ Victoire' : '✗ Défaite'} - ${match.champion}</h3>
+            <div class="match-info-bar">
+                <span>⏱️ ${match.gameDuration || '?'} minutes</span>
+                <span>🎮 ${match.gameMode || 'CLASSIC'}</span>
+                <span>📊 KDA: ${match.kda}</span>
+                <span>⭐ Score: ${match.playerPerformance}/100</span>
+            </div>
+        </div>
+
+        <div class="teams-container">
+            <!-- Team Bleue -->
+            <div class="team blue ${blueWon ? 'win' : 'loss'}">
+                <h4>🔵 Équipe Bleue</h4>
+                ${blueTeam.map(player => renderPlayerRow(player, match)).join('')}
+            </div>
+
+            <!-- Team Rouge -->
+            <div class="team red ${redWon ? 'win' : 'loss'}">
+                <h4>🔴 Équipe Rouge</h4>
+                ${redTeam.map(player => renderPlayerRow(player, match)).join('')}
+            </div>
+        </div>
+    `;
+
+    matchModal.style.display = 'block';
+}
+
+function renderPlayerRow(player, currentMatch) {
+    // Déterminer si c'est le joueur analysé
+    const isCurrentPlayer = player.champion === currentMatch.champion;
+
+    // Classe de couleur selon la performance
+    let perfClass = 'perf-medium';
+    if (player.performance >= 80) perfClass = 'perf-excellent';
+    else if (player.performance >= 60) perfClass = 'perf-good';
+    else if (player.performance >= 40) perfClass = 'perf-medium';
+    else if (player.performance >= 20) perfClass = 'perf-bad';
+    else perfClass = 'perf-terrible';
+
+    const kda = `${player.kills}/${player.deaths}/${player.assists}`;
+    const kdaRatio = player.deaths > 0
+        ? ((player.kills + player.assists) / player.deaths).toFixed(2)
+        : (player.kills + player.assists).toFixed(2);
+
+    return `
+        <div class="player-row ${isCurrentPlayer ? 'highlight' : ''}">
+            <div class="player-champion">${player.champion}</div>
+            <div class="player-name">
+                ${player.summonerName}${player.tagLine ? '#' + player.tagLine : ''}
+                ${isCurrentPlayer ? '(Vous)' : ''}
+            </div>
+            <div class="player-stats">
+                <span title="KDA">${kda}</span>
+                <span title="KDA Ratio">${kdaRatio} KDA</span>
+                <span title="CS">${player.cs} CS</span>
+                <span title="Dégâts">${Math.floor(player.damage / 1000)}k dmg</span>
+            </div>
+            <div class="player-performance ${perfClass}">
+                ${player.performance}/100
+            </div>
+        </div>
+    `;
+}
+
+function closeModal() {
+    matchModal.style.display = 'none';
+}
+
+// Rendre showMatchDetails accessible globalement
+window.showMatchDetails = showMatchDetails;

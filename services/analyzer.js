@@ -283,13 +283,45 @@ function analyzePlayer(playerName, matches, puuid) {
                 };
             });
 
+        // ===== ÉTAPE 5: Ajouter tous les joueurs de la partie pour le détail =====
+        const allPlayers = allPlayersWithScores.map((p, idx) => {
+            const participant = p.participant;
+            return {
+                summonerName: participant.riotIdGameName || participant.summonerName,
+                tagLine: participant.riotIdTagLine || '',
+                champion: participant.championName,
+                teamId: participant.teamId,
+                performance: normalizedScores[idx],
+                kills: participant.kills,
+                deaths: participant.deaths,
+                assists: participant.assists,
+                cs: (participant.totalMinionsKilled || 0) + (participant.neutralMinionsKilled || 0),
+                gold: participant.goldEarned,
+                damage: participant.totalDamageDealtToChampions,
+                visionScore: participant.visionScore,
+                items: [
+                    participant.item0,
+                    participant.item1,
+                    participant.item2,
+                    participant.item3,
+                    participant.item4,
+                    participant.item5,
+                    participant.item6
+                ].filter(item => item !== 0),
+                win: participant.win
+            };
+        });
+
         matchHistory.push({
             matchId: matchData.metadata.matchId,
             champion: participant.championName,
             playerPerformance: performance,
             won,
             kda: `${participant.kills}/${participant.deaths}/${participant.assists}`,
-            teammates
+            teammates,
+            allPlayers,  // Nouveau : tous les joueurs de la partie
+            gameDuration: Math.floor(matchData.info.gameDuration / 60), // En minutes
+            gameMode: matchData.info.gameMode
         });
     });
 
