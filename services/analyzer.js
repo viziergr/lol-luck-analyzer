@@ -159,7 +159,26 @@ function calculatePerformanceScore(playerStats) {
     );
     score += goldScore;
 
-    // 7. Objectifs
+    // 8. Gold Diff à 15min (early game domination)
+    const goldDiff15 = playerStats.goldDiff15 || 0;
+    const goldDiffWeight = applyRoleMultiplier(perfConfig.goldDiff15.weight, 'goldDiff15');
+
+    // Score basé sur la diff (peut être négatif si en retard)
+    // +1000 gold = +7 points, -1000 gold = -7 points
+    let goldDiffScore = (goldDiff15 / perfConfig.goldDiff15.perfect) * goldDiffWeight;
+    goldDiffScore = Math.max(-goldDiffWeight, Math.min(goldDiffWeight, goldDiffScore));
+    score += goldDiffScore;
+
+    // 9. XP Diff à 15min (level advantage)
+    const xpDiff15 = playerStats.xpDiff15 || 0;
+    const xpDiffWeight = applyRoleMultiplier(perfConfig.xpDiff15.weight, 'xpDiff15');
+
+    // Score basé sur la diff
+    let xpDiffScore = (xpDiff15 / perfConfig.xpDiff15.perfect) * xpDiffWeight;
+    xpDiffScore = Math.max(-xpDiffWeight, Math.min(xpDiffWeight, xpDiffScore));
+    score += xpDiffScore;
+
+    // 10. Objectifs
     const turretKills = playerStats.turretKills || 0;
     const inhibitorKills = playerStats.inhibitorKills || 0;
     const baronKills = playerStats.challenges?.baronKills || 0;
@@ -299,6 +318,10 @@ function analyzePlayer(playerName, matches, puuid) {
         const teamParticipants = matchData.info.participants.filter(p => p.teamId === teamId);
         const teamTotalDamage = teamParticipants.reduce((sum, p) => sum + (p.totalDamageDealtToChampions || 0), 0);
 
+        // ===== NOUVEAU: Récupérer la timeline pour gold/xp diff à 15min =====
+        // On stocke temporairement, sera calculé plus tard de manière async
+        matchData._timeline = null; // Placeholder
+
         // ===== ÉTAPE 1: Calculer les scores BRUTS de TOUS les joueurs de la partie =====
         const allPlayersWithScores = matchData.info.participants.map(p => {
             // Recalculer le dégât total de l'équipe de ce joueur
@@ -309,7 +332,9 @@ function analyzePlayer(playerName, matches, puuid) {
             const statsWithTeam = {
                 ...p,
                 teamTotalDamage: pTeamTotalDamage,
-                gameDuration: matchData.info.gameDuration
+                gameDuration: matchData.info.gameDuration,
+                goldDiff15: 0,  // Sera calculé après avec timeline
+                xpDiff15: 0     // Sera calculé après avec timeline
             };
 
             return {

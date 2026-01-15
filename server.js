@@ -78,11 +78,56 @@ app.post('/api/analyze', async (req, res) => {
             });
         }
 
-        // 3. Récupérer les détails de chaque match SEQUENTIELLEMENT (rate limiting)
+
+        // 3. Récupérer les détails de chaque match SEQUENTIEL LEMENT (rate limiting)
         console.log(`Fetching ${matchIds.length} matches...`);
         const matches = [];
         for (let i = 0; i < matchIds.length; i++) {
             const matchData = await riotApi.getMatchDetails(matchIds[i]);
+
+            // Récupérer aussi la timeline pour gold/xp diff à 15min
+            const timeline = await riotApi.getMatchTimeline(matchIds[i]);
+
+            // Calculer gold diff et XP diff à 15min pour chaque joueur
+            if (timeline && timeline.info && timeline.info.frames) {
+                const frame15min = timeline.info.frames.find(f => f.timestamp >= 900000) || null; // 15min = 900000ms
+
+                if (frame15min) {
+                    // Pour chaque participant, calculer la diff avec son opponent de lane
+                    matchData.info.participants.forEach(p => {
+                        const participantId = p.participantId;
+                        const participantFrame = frame15min.participantFrames[participantId];
+
+                        if (participantFrame) {
+                            // Trouver l'opponent de lane (même role mais team adverse)
+                            const opponentTeamId = p.teamId === 100 ? 200 : 100;
+                            const sameRole = matchData.info.participants.find(
+                                opp => opp.teamId === opponentTeamId &&
+                                    opp.teamPosition === p.teamPosition &&
+                                    opp.participantId !== participantId
+                            );
+
+                            if (sameRole) {
+                                const opponentFrame = frame15min.participantFrames[sameRole.participantId];
+                                if (opponentFrame) {
+                                    p.goldDiff15 = participantFrame.totalGold - opponentFrame.totalGold;
+                                    p.xpDiff15 = participantFrame.xp - opponentFrame.xp;
+                                } else {
+                                    p.goldDiff15 = 0;
+                                    p.xpDiff15 = 0;
+                                }
+                            } else {
+                                p.goldDiff15 = 0;
+                                p.xpDiff15 = 0;
+                            }
+                        } else {
+                            p.goldDiff15 = 0;
+                            p.xpDiff15 = 0;
+                        }
+                    });
+                }
+            }
+
             matches.push(matchData);
 
             // Log progress

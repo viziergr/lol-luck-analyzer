@@ -171,9 +171,51 @@ async function getMatchDetails(matchId) {
     }
 }
 
+/**
+ * Récupère la timeline d'un match (pour gold diff, xp diff à 15min)
+ * @param {string} matchId - ID du match
+ * @returns {Object} Timeline du match
+ */
+async function getMatchTimeline(matchId) {
+    // Cache mémoire
+    const memoryCacheKey = `timeline_${matchId}`;
+    const cachedInMemory = cache.get(memoryCacheKey);
+    if (cachedInMemory) {
+        return cachedInMemory;
+    }
+
+    // Cache persistant
+    const persistentCacheKey = `timeline_${matchId}`;
+    const cachedOnDisk = await persistentCache.get(persistentCacheKey);
+    if (cachedOnDisk) {
+        cache.set(memoryCacheKey, cachedOnDisk);
+        return cachedOnDisk;
+    }
+
+    // API call
+    try {
+        const url = `https://${ROUTING_REGION}.api.riotgames.com/lol/match/v5/matches/${matchId}/timeline`;
+        const response = await rateLimiter.execute(() =>
+            axios.get(url, {
+                headers: { 'X-Riot-Token': RIOT_API_KEY }
+            })
+        );
+
+        const timeline = response.data;
+        cache.set(memoryCacheKey, timeline);
+        await persistentCache.set(persistentCacheKey, timeline);
+
+        return timeline;
+    } catch (error) {
+        // Timeline pas toujours disponible, retourner null
+        return null;
+    }
+}
+
 module.exports = {
     getSummonerByRiotId,
     getMatchHistory,
     getMatchDetails,
+    getMatchTimeline,  // Export timeline
     persistentCache // Export pour accès externe (stats, cleanup, etc.)
 };
