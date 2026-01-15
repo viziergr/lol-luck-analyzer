@@ -1,61 +1,115 @@
+// Importer la configuration de l'algorithme
+// Vous pouvez modifier les paramètres dans config/algorithmConfig.js
+const config = require('../config/algorithmConfig');
+
+/**
+ * Normalise les scores de performance d'une partie
+ * Le meilleur joueur obtient 100/100, les autres sont relatifs
+ * @param {Array} playersWithScores - [{participant, rawScore}, ...]
+ * @returns {Array} - Scores normalisés
+ */
+function normalizePerformanceScores(playersWithScores) {
+    if (!config.normalization.enabled) {
+        // Retourner les scores bruts si normalisation désactivée
+        return playersWithScores.map(p => p.rawScore);
+    }
+
+    // Trouver le score maximum de la partie
+    const maxScore = Math.max(...playersWithScores.map(p => p.rawScore));
+
+    // Si le max est 0 ou négatif, on retourne les scores bruts
+    if (maxScore <= 0) {
+        return playersWithScores.map(p => Math.max(config.normalization.minScore, p.rawScore));
+    }
+
+    // Normaliser tous les scores pour que le max = 100
+    return playersWithScores.map(p => {
+        const normalizedScore = (p.rawScore / maxScore) * 100;
+        return Math.round(Math.max(config.normalization.minScore, normalizedScore));
+    });
+}
+
 /**
  * Calcule le score de performance d'un joueur sur une partie (0-100)
- * Basé sur plusieurs métriques clés
+ * Basé sur plusieurs métriques clés configurables
  */
 function calculatePerformanceScore(playerStats) {
     let score = 0;
+    const perfConfig = config.performance;
 
-    // 1. KDA Ratio (20 points)
+    // 1. KDA Ratio
     const kills = playerStats.kills || 0;
     const deaths = playerStats.deaths || 1; // Éviter division par 0
     const assists = playerStats.assists || 0;
     const kda = (kills + assists) / deaths;
 
-    const kdaScore = Math.min(20, (kda / 10) * 20);
+    const kdaScore = Math.min(
+        perfConfig.kda.weight,
+        (kda / perfConfig.kda.perfect) * perfConfig.kda.weight
+    );
     score += kdaScore;
 
-    // 2. Dégâts infligés relatifs (20 points)
+    // 2. Dégâts infligés relatifs
     const damageDealt = playerStats.totalDamageDealtToChampions || 0;
     const teamDamage = playerStats.teamTotalDamage || 1;
     const damagePercent = damageDealt / teamDamage;
 
-    const damageScore = Math.min(20, (damagePercent / 0.30) * 20); // 30% = parfait
+    const damageScore = Math.min(
+        perfConfig.damageShare.weight,
+        (damagePercent / perfConfig.damageShare.perfect) * perfConfig.damageShare.weight
+    );
     score += damageScore;
 
-    // 3. Participation aux kills (15 points)
+    // 3. Participation aux kills
     const killParticipation = playerStats.challenges?.killParticipation || 0;
-    const participationScore = killParticipation * 15;
+    const participationScore = killParticipation * perfConfig.killParticipation.weight;
     score += participationScore;
 
-    // 4. Vision Score (10 points)
+    // 4. Vision Score
     const visionScore = playerStats.visionScore || 0;
     const gameDuration = playerStats.gameDuration || 1800; // 30 min par défaut
     const visionPerMin = (visionScore / gameDuration) * 60;
 
-    const visionPoints = Math.min(10, (visionPerMin / 3) * 10); // 3/min = parfait
+    const visionPoints = Math.min(
+        perfConfig.visionScore.weight,
+        (visionPerMin / perfConfig.visionScore.perfectPerMin) * perfConfig.visionScore.weight
+    );
     score += visionPoints;
 
-    // 5. CS/min (15 points)
+    // 5. CS/min
     const cs = (playerStats.totalMinionsKilled || 0) + (playerStats.neutralMinionsKilled || 0);
     const csPerMin = (cs / gameDuration) * 60;
 
-    const csScore = Math.min(15, (csPerMin / 8) * 15); // 8 CS/min = parfait
+    const csScore = Math.min(
+        perfConfig.csPerMin.weight,
+        (csPerMin / perfConfig.csPerMin.perfect) * perfConfig.csPerMin.weight
+    );
     score += csScore;
 
-    // 6. Gold/min (10 points)
+    // 6. Gold/min
     const gold = playerStats.goldEarned || 0;
     const goldPerMin = (gold / gameDuration) * 60;
 
-    const goldScore = Math.min(10, (goldPerMin / 400) * 10); // 400 gold/min = parfait
+    const goldScore = Math.min(
+        perfConfig.goldPerMin.weight,
+        (goldPerMin / perfConfig.goldPerMin.perfect) * perfConfig.goldPerMin.weight
+    );
     score += goldScore;
 
-    // 7. Objectifs (10 points)
+    // 7. Objectifs
     const turretKills = playerStats.turretKills || 0;
     const inhibitorKills = playerStats.inhibitorKills || 0;
     const baronKills = playerStats.challenges?.baronKills || 0;
     const dragonKills = playerStats.challenges?.dragonKills || 0;
 
-    const objectivesScore = Math.min(10, (turretKills + inhibitorKills * 2 + baronKills * 3 + dragonKills * 2) * 0.5);
+    const objConfig = perfConfig.objectives;
+    const objectivesScore = Math.min(
+        objConfig.weight,
+        (turretKills * objConfig.turretValue +
+            inhibitorKills * objConfig.inhibitorValue +
+            baronKills * objConfig.baronValue +
+            dragonKills * objConfig.dragonValue) * objConfig.multiplier
+    );
     score += objectivesScore;
 
     return Math.round(score);
@@ -72,6 +126,10 @@ function calculateLuckScore(matchHistory) {
     let carriedWins3 = 0;     // Victoires où il était faible
     let badPerformances = 0;  // Mauvaises performances totales
 
+    const luckConfig = config.luck;
+    const thresholds = luckConfig.thresholds;
+    const scenarios = luckConfig.scenarios;
+
     matchHistory.forEach(match => {
         const playerPerf = match.playerPerformance;
         const teammates = match.teammates || [];
@@ -86,28 +144,28 @@ function calculateLuckScore(matchHistory) {
         const won = match.won;
 
         // Classification des performances
-        const isGoodPerf = playerPerf >= 70;
-        const isBadPerf = playerPerf < 40;
-        const isCarrying = performanceDiff > 15; // 15 points au-dessus de la team
-        const isBeingCarried = performanceDiff < -15; // 15 points en-dessous de la team
+        const isGoodPerf = playerPerf >= thresholds.goodPerformance;
+        const isBadPerf = playerPerf < thresholds.badPerformance;
+        const isCarrying = performanceDiff > thresholds.carrying;
+        const isBeingCarried = performanceDiff < thresholds.beingCarried;
 
         if (isBadPerf) badPerformances++;
 
         // Cas 1: Bonne perf + Défaite = Malchanceux
         if (isGoodPerf && !won) {
-            luckScore -= 3;
+            luckScore += scenarios.goodPerfLoss;
             if (isCarrying) {
                 carriedLosses++;
-                luckScore -= 5; // Très malchanceux de perdre alors qu'on carry
+                luckScore += scenarios.carryingLoss;
             }
         }
 
         // Cas 2: Mauvaise perf + Victoire = Chanceux
         if (isBadPerf && won) {
-            luckScore += 3;
+            luckScore += scenarios.badPerfWin;
             if (isBeingCarried) {
                 carriedWins3++;
-                luckScore += 5; // Très chanceux de gagner alors qu'on joue mal
+                luckScore += scenarios.beingCarriedWin;
             }
         }
 
@@ -117,18 +175,21 @@ function calculateLuckScore(matchHistory) {
         }
 
         // Cas 4: Performance moyenne = Ajustement selon teammates
-        if (playerPerf >= 40 && playerPerf < 70) {
+        if (playerPerf >= thresholds.badPerformance && playerPerf < thresholds.goodPerformance) {
             if (won && avgTeamPerf < 50) {
-                luckScore -= 1; // A gagné avec une team faible = un peu de skill
+                luckScore += scenarios.winWithWeakTeam;
             } else if (!won && avgTeamPerf > 60) {
-                luckScore += 1; // A perdu avec une bonne team = un peu malchanceux
+                luckScore += scenarios.loseWithStrongTeam;
             }
         }
     });
 
     // Normalisation du score de chance sur une échelle -100 à +100
     const totalGames = matchHistory.length || 1;
-    const normalizedLuck = Math.max(-100, Math.min(100, (luckScore / totalGames) * 10));
+    const normalizedLuck = Math.max(
+        -100,
+        Math.min(100, (luckScore / totalGames) * luckConfig.normalizationFactor)
+    );
 
     return {
         luckScore: Math.round(normalizedLuck),
@@ -174,31 +235,48 @@ function analyzePlayer(playerName, matches, puuid) {
         const teamParticipants = matchData.info.participants.filter(p => p.teamId === teamId);
         const teamTotalDamage = teamParticipants.reduce((sum, p) => sum + (p.totalDamageDealtToChampions || 0), 0);
 
-        const statsWithTeam = {
-            ...participant,
-            teamTotalDamage,
-            gameDuration: matchData.info.gameDuration
-        };
+        // ===== ÉTAPE 1: Calculer les scores BRUTS de TOUS les joueurs de la partie =====
+        const allPlayersWithScores = matchData.info.participants.map(p => {
+            // Recalculer le dégât total de l'équipe de ce joueur
+            const pTeamId = p.teamId;
+            const pTeamParticipants = matchData.info.participants.filter(tp => tp.teamId === pTeamId);
+            const pTeamTotalDamage = pTeamParticipants.reduce((sum, tp) => sum + (tp.totalDamageDealtToChampions || 0), 0);
 
-        const performance = calculatePerformanceScore(statsWithTeam);
+            const statsWithTeam = {
+                ...p,
+                teamTotalDamage: pTeamTotalDamage,
+                gameDuration: matchData.info.gameDuration
+            };
+
+            return {
+                participant: p,
+                rawScore: calculatePerformanceScore(statsWithTeam)
+            };
+        });
+
+        // ===== ÉTAPE 2: Normaliser les scores (le meilleur = 100) =====
+        const normalizedScores = normalizePerformanceScores(allPlayersWithScores);
+
+        // ===== ÉTAPE 3: Retrouver le score normalisé du joueur analysé =====
+        const playerIndex = allPlayersWithScores.findIndex(p => p.participant.puuid === puuid);
+        const performance = normalizedScores[playerIndex];
+
         const won = participant.win;
-
         if (won) wins++;
         else losses++;
 
         totalPerformance += performance;
 
-        // Récupérer les performances des teammates
+        // ===== ÉTAPE 4: Calculer les scores normalisés des teammates =====
         const teammates = teamParticipants
             .filter(p => p.puuid !== puuid)
-            .map(p => ({
-                name: p.riotIdGameName || p.summonerName,
-                performance: calculatePerformanceScore({
-                    ...p,
-                    teamTotalDamage,
-                    gameDuration: matchData.info.gameDuration
-                })
-            }));
+            .map(p => {
+                const tIndex = allPlayersWithScores.findIndex(ap => ap.participant.puuid === p.puuid);
+                return {
+                    name: p.riotIdGameName || p.summonerName,
+                    performance: normalizedScores[tIndex]
+                };
+            });
 
         matchHistory.push({
             matchId: matchData.metadata.matchId,
