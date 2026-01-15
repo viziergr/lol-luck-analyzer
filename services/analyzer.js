@@ -3,8 +3,10 @@
 const config = require('../config/algorithmConfig');
 
 /**
- * Normalise les scores de performance d'une partie
- * Le meilleur joueur obtient 100/100, les autres sont relatifs
+ * Normalise les scores de performance d'une partie (Min-Max)
+ * Le MEILLEUR joueur obtient 100/100
+ * Le PIRE joueur obtient 0/100
+ * Les autres sont proportionnellement répartis entre 0 et 100
  * @param {Array} playersWithScores - [{participant, rawScore}, ...]
  * @returns {Array} - Scores normalisés
  */
@@ -14,18 +16,21 @@ function normalizePerformanceScores(playersWithScores) {
         return playersWithScores.map(p => p.rawScore);
     }
 
-    // Trouver le score maximum de la partie
-    const maxScore = Math.max(...playersWithScores.map(p => p.rawScore));
+    // Trouver le score maximum et minimum de la partie
+    const scores = playersWithScores.map(p => p.rawScore);
+    const maxScore = Math.max(...scores);
+    const minScore = Math.min(...scores);
 
-    // Si le max est 0 ou négatif, on retourne les scores bruts
-    if (maxScore <= 0) {
-        return playersWithScores.map(p => Math.max(config.normalization.minScore, p.rawScore));
+    // Si tous les scores sont identiques ou si max <= 0
+    if (maxScore === minScore || maxScore <= 0) {
+        // Tout le monde a le même score, on retourne 50 pour tous
+        return playersWithScores.map(() => 50);
     }
 
-    // Normaliser tous les scores pour que le max = 100
+    // Normalisation Min-Max : (score - min) / (max - min) × 100
     return playersWithScores.map(p => {
-        const normalizedScore = (p.rawScore / maxScore) * 100;
-        return Math.round(Math.max(config.normalization.minScore, normalizedScore));
+        const normalizedScore = ((p.rawScore - minScore) / (maxScore - minScore)) * 100;
+        return Math.round(normalizedScore);
     });
 }
 

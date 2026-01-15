@@ -1,89 +1,158 @@
-# ⚖️ Normalisation Relative des Scores
+# ⚖️ Normalisation Min-Max - Mise à jour
 
-## 🎯 Nouveau système implémenté
+## 🎯 Nouveau système : Normalisation complète (Min-Max)
 
-Le scoring a été modifié pour utiliser une **normalisation relative par partie** :
+Le système a été amélioré pour une normalisation **bidirectionnelle** :
 
-### Avant (Scoring Absolu) :
-```
-Partie 1:
-- Joueur A: 85/100 (KDA 8, bon farm, bons dégâts)
-- Joueur B: 72/100 (KDA 5, farm correct)
-- Joueur C: 45/100 (KDA 2, feed)
-```
-
-**Problème** : Dans une partie très équilibrée, personne n'atteint 100.
+### Principe :
+- **Meilleur joueur** de la partie = **100/100**
+- **Pire joueur** de la partie = **0/100**
+- **Tous les autres** sont **proportionnellement répartis** entre 0 et 100
 
 ---
 
-### Maintenant (Scoring Relatif) :
+## 📊 Comment ça marche ?
+
+### Formule Min-Max :
 ```
-Partie 1 (scores bruts):
-- Joueur A: 85/100 ← Meilleur de la partie
-- Joueur B: 72/100
-- Joueur C: 45/100
-
-Après normalisation:
-- Joueur A: 100/100 ← Normalisé au max
-- Joueur B: (72/85) × 100 = 85/100
-- Joueur C: (45/85) × 100 = 53/100
+Score normalisé = ((Score brut - Score min) / (Score max - Score min)) × 100
 ```
-
-**Avantage** : Le meilleur joueur de **chaque partie** obtient toujours 100/100, les autres sont relatifs à lui.
-
----
-
-## 🔍 Comment ça marche ?
-
-### Algorithme de normalisation :
-
-1. **Calculer les scores bruts** de tous les 10 joueurs de la partie (selon les 7 métriques)
-2. **Trouver le score maximum** de la partie
-3. **Normaliser tous les scores** : `(score_brut / score_max) × 100`
 
 ### Exemple concret :
 
-**Partie très serrée :**
+**Partie avec scores variés :**
 ```
 Scores bruts:
-- Joueur1: 78/100 (meilleur)
-- Joueur2: 75/100
-- Joueur3: 71/100
-- ...
+- Carry: 85/100 ← Meilleur
+- Joueur2: 68/100
+- Joueur3: 52/100
+- Joueur4: 40/100
+- Feeder: 18/100 ← Pire
 
-Après normalisation:
-- Joueur1: 100/100 ← Il était le meilleur
-- Joueur2: 96/100
-- Joueur3: 91/100
-```
+Normalisation Min-Max:
+Min = 18, Max = 85
+Range = 85 - 18 = 67
 
-**Partie avec un carry dominant :**
-```
-Scores bruts:
-- Carry: 92/100 (monstre)
-- Joueur2: 58/100
-- Feeder: 22/100
-
-Après normalisation:
-- Carry: 100/100 ← Normalisé
-- Joueur2: 63/100
-- Feeder: 24/100
+- Carry: ((85-18)/67) × 100 = 100/100 ✅
+- Joueur2: ((68-18)/67) × 100 = 75/100
+- Joueur3: ((52-18)/67) × 100 = 51/100
+- Joueur4: ((40-18)/67) × 100 = 33/100
+- Feeder: ((18-18)/67) × 100 = 0/100 ✅
 ```
 
 ---
 
-## 📊 Impact sur l'algorithme de chance
+## 🆚 Comparaison avec l'ancien système
 
-### Avant :
-- Bonne perf =Score >= 70
-- Mauvaise perf = Score < 40
+### Ancien système (normalisation max uniquement) :
+```
+Scores bruts: Max = 85
 
-Avec une normalisation absolue, difficile d'atteindre 70+ régulièrement.
+- Carry: (85/85) × 100 = 100/100
+- Joueur2: (68/85) × 100 = 80/100
+- Feeder: (18/85) × 100 = 21/100 ← Pas 0
+```
 
-### Maintenant :
-Les seuils restent les mêmes (70 pour bonne perf), mais ils sont basés sur les **scores normalisés**.
+❌ Le pire joueur avait encore 21/100
 
-**Résultat** : Plus facile d'être considéré comme "bon" si vous étiez le meilleur de votre partie, même si objectivement vous n'étiez pas parfait.
+### Nouveau système (Min-Max) :
+```
+Min = 18, Max = 85
+
+- Carry: 100/100
+- Joueur2: 75/100 ← Plus bas qu'avant
+- Feeder: 0/100 ← VRAIMENT nul
+```
+
+✅ Le pire joueur a maintenant 0/100
+✅ L'écart entre joueurs est mieux visible
+
+---
+
+## 📈 Avantages
+
+### 1. **Écart plus visible**
+Avant, difficile de distinguer un joueur moyen (60/100 brut) d'un feeder (25/100 brut).
+Maintenant, l'écart est claire : 60 vs 10 après normalisation.
+
+### 2. **Score de chance plus précis**
+- **100/100** = Vous étiez objectivement le **meilleur** de la partie
+- **0/100** = Vous étiez objectivement le **pire** de la partie
+- **50/100** = Vous étiez dans la moyenne
+
+### 3. **Détection du carry**
+Si vous avez 100/100 régulièrement, vous carry vraiment vos games.
+
+### 4. **Détection du feed**
+Si vous avez des 0/100, vous êtes le maillon faible.
+
+---
+
+## 🎮 Exemples d'utilisation
+
+### Exemple 1 : Partie équilibrée
+```
+10 joueurs, tous entre 60-75 brut
+
+Après normalisation:
+- Meilleur (75): 100/100
+- Moyenne (67): 50/100
+- Pire (60): 0/100
+```
+
+→ Même en partie équilibrée, on voit qui était le meilleur/pire
+
+### Exemple 2 : Un carry + 9 nuls
+```
+Scores bruts:
+- Carry: 92/100
+- 9 autres: entre 25-35/100
+
+Après normalisation:
+- Carry: 100/100
+- Autres: entre 0-15/100
+```
+
+→ Le carry se démarque VRAIMENT
+
+### Exemple 3 : Deux teams équilibrées
+```
+Team 1: 70, 68, 65, 62, 60
+Team 2: 69, 67, 64, 61, 58
+
+Après normalisation:
+- Meilleur (70): 100/100
+- Milieu (64): 50/100
+- Pire (58): 0/100
+```
+
+→ Distribution équitable sur toute l'échelle
+
+---
+
+## 🍀 Impact sur le score de chance
+
+### Avant (normalisation max uniquement) :
+- Seuil "bonne perf": >= 70/100
+- Difficile d'atteindre 70 si le meilleur était à 80 brut
+
+### Maintenant (Min-Max) :
+- **70/100** = Vous étiez dans les **30% meilleurs** de la partie
+- **30/100** = Vous étiez dans les **30% pires** de la partie
+- Plus facile d'interpréter le rang relatif
+
+### Scénarios de chance mis à jour :
+
+**Très malchanceux :**
+- **100/100** (meilleur de la partie) + **Loss**
+- Vous étiez le carry mais avez perdu
+
+**Très chanceux :**
+- **0-20/100** (pire de la partie) + **Win**
+- Vous étiez le feeder mais avez gagné
+
+**Neutre :**
+- **50/100** + résultat cohérent avec la team
 
 ---
 
@@ -93,100 +162,88 @@ Dans [`config/algorithmConfig.js`](file:///c:/Users/grego/Documents/Git/lol-luck
 
 ```javascript
 normalization: {
-    // Activer/désactiver la normalisation relative
-    enabled: true,        // true = relatif, false = absolu
-    
-    // Score minimum après normalisation
-    minScore: 0,
-    
-    description: 'Normalisation relative : le meilleur de la partie = 100'
+    enabled: true,  // true = Min-Max, false = scores bruts
+    description: 'Normalisation Min-Max : Meilleur = 100, Pire = 0'
 }
 ```
 
-**Pour revenir au scoring absolu :**
+**Pour désactiver complètement :**
 ```javascript
 enabled: false
 ```
 
 ---
 
-## 🎮 Exemples d'utilisation
+## 📊 Cas particuliers gérés
 
-### Cas 1 : Déterminer qui a carry
-Avec la normalisation, si vous avez **100/100** dans une partie, vous étiez **objectivement le meilleur joueur** de cette game.
+### Cas 1 : Tous les joueurs ont le même score
+```
+10 joueurs à 60/100 brut (partie très équilibrée ou bug)
 
-### Cas 2 : Hard stuck Bronze mais bon relativement
-Même en Bronze, si vous jouez mieux que les 9 autres joueurs systématiquement, vous aurez des scores élevés.
+→ Tous mis à 50/100
+```
 
-### Cas 3 : Carry perdu
-Si vous avez **100/100** mais **loss**, votre chance descend fortement (vous étiez le meilleur mais avez perdu = malchance).
+### Cas 2 : Scores négatifs ou nuls
+```
+Tous < 0
 
----
-
-## 📈 Changements dans les statistiques
-
-### Performance moyenne
-- **Avant** : Rarement au-dessus de 75/100
-- **Maintenant** : Si vous êtes souvent le meilleur, vous aurez des moyennes > 80
-
-### Score de chance
-Devient plus pertinent car :
-- **100/100 + Loss** = Très malchanceux (vous étiez le meilleur)
-- **50/100 + Win** = Chanceux (vous étiez moyen mais win quand même)
+→ Tous mis à 50/100
+```
 
 ---
 
-## ⚠️ Limitations
+## 🔍 Interprétation des scores
 
-### 1. Pas de comparaison inter-parties
-Vous ne pouvez plus comparer directement 2 performances de parties différentes :
-- 100/100 partie 1 ≠ 100/100 partie 2
-
-### 2. Stomp games
-Dans une partie où votre équipe domine complètement (20-3), le "meilleur" peut avoir seulement 60/100 en brut mais sera normalisé à 100.
-
-### 3. Scores moyens gonflés
-Les moyennes globales seront plus élevées qu'avant.
-
----
-
-## 💡 Recommandations
-
-### Si vous jouez principalement en solo :
-✅ **Activer la normalisation** (`enabled: true`)
-→ Montre si vous êtes le meilleur de vos parties
-
-### Si vous jouez en stack avec des amis de niveaux variés :
-⚠️ **Peut-être désactiver** (`enabled: false`)
-→ Scoring absolu plus représentatif du niveau réel
-
-### Pour l'analyse de chance :
-✅ **Activer** 
-→ Détecte mieux les "carry solo" vs "porté par la team"
+| Score | Signification | Exemple |
+|-------|--------------|---------|
+| **90-100** | Top performer | Carry de la partie |
+| **70-89** | Très bonne perf | Contributeur majeur |
+| **50-69** | Performance correcte | Milieu de tableau |
+| **30-49** | Perf faible | En difficulté |
+| **10-29** | Très mauvaise perf | Feedeur |
+| **0-9** | Catastrophique | Le pire de la partie |
 
 ---
 
-## 🔄 Migration
+## 📈 Statistiques affectées
 
-Les scores précédemment calculés étaient en mode absolu. Après l'update :
-- Relancez une analyse pour recalculer avec le nouveau système
-- Les scores seront différents (généralement plus élevés)
+### Moyennes globales plus équilibrées
+Avec Min-Max, votre moyenne sur 20 parties sera proche de 50/100 si vous êtes toujours au milieu du classement.
+
+**Avant :** Moyenne souvent ~60-65
+**Maintenant :** Moyenne ~45-55 si vous êtes moyen
+
+### Score de chance plus sensible
+Avec une échelle 0-100 complète, les écarts de performance ont plus d'impact.
 
 ---
 
 ## 🚀 Mise en production
 
-Transférez les fichiers modifiés sur votre VPS :
-```bash
-# Fichiers modifiés :
-config/algorithmConfig.js   # Ajout de normalization
-services/analyzer.js         # Logique de normalisation
+Fichiers modifiés :
+```
+config/algorithmConfig.js    # Description mise à jour
+services/analyzer.js          # Fonction normalizePerformanceScores
 ```
 
-Redémarrez le serveur :
+Transférez et redémarrez :
 ```bash
+cd /chemin/vers/lol-luck-analyzer
+# Copier les fichiers modifiés
 pkill node
 npm start
 ```
 
-**Testez !** Cherchez un joueur et comparez les nouveaux scores. Le meilleur de chaque partie devrait avoir 100/100 ! 🎯
+---
+
+## ✨ Résumé
+
+**Avant :** Meilleur = 100, Pire = ~20-30
+**Maintenant :** Meilleur = 100, Pire = 0
+
+✅ Écart plus visible
+✅ Score de chance plus précis
+✅ Détection claire du carry et du feeder
+✅ Utilisation complète de l'échelle 0-100
+
+**C'est plus juste et plus lisible ! 🎯**

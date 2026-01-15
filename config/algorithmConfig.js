@@ -4,16 +4,16 @@
  */
 
 module.exports = {
-    // ===== NORMALISATION PAR PARTIE =====
+    // ===== NORMALISATION PAR PARTIE (Min-Max) =====
     normalization: {
-        // Si true, normalise les scores pour que le meilleur joueur de chaque partie ait 100/100
+        // Si true, normalise les scores pour que :
+        // - Le MEILLEUR joueur de chaque partie ait 100/100
+        // - Le PIRE joueur de chaque partie ait 0/100
+        // - Les autres soient proportionnellement répartis entre 0 et 100
         // Si false, utilise le scoring absolu (0-100 selon les critères parfaits)
         enabled: true,
 
-        // Score minimum garanti après normalisation (évite les scores négatifs)
-        minScore: 0,
-
-        description: 'Normalisation relative : le meilleur de la partie = 100, les autres sont relatifs à lui'
+        description: 'Normalisation Min-Max : Meilleur = 100, Pire = 0, autres proportionnels'
     },
 
     // ===== SCORE DE PERFORMANCE (0-100) =====
