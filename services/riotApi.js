@@ -1,10 +1,12 @@
 const axios = require('axios');
 const NodeCache = require('node-cache');
 const RateLimiter = require('./rateLimiter');
+const PersistentCache = require('./persistentCache');
 require('dotenv').config();
 
-const cache = new NodeCache({ stdTTL: 600 }); // Cache pendant 10 minutes
+const cache = new NodeCache({ stdTTL: 600 }); // Cache mémoire : 10 minutes
 const rateLimiter = new RateLimiter(18); // 18 requêtes/seconde (marge de sécurité)
+const persistentCache = new PersistentCache('./cache', 7); // Cache disque : 7 jours
 
 const RIOT_API_KEY = process.env.RIOT_API_KEY;
 const REGION = process.env.REGION || 'euw1';
@@ -127,10 +129,24 @@ async function getMatchHistory(puuid, count = 100, startTime = null) {
  * @returns {Object} Détails complets du match
  */
 async function getMatchDetails(matchId) {
-    const cacheKey = `match_${matchId}`;
-    const cached = cache.get(cacheKey);
-    if (cached) return cached;
+    // 1. Vérifier le cache mémoire (rapide)
+    const memoryCacheKey = `match_${matchId}`;
+    const cachedInMemory = cache.get(memoryCacheKey);
+    if (cachedInMemory) {
+        return cachedInMemory;
+    }
 
+    // 2. Vérifier le cache persistant (disque)
+    const persistentCacheKey = `match_${matchId}`;
+    const cachedOnDisk = await persistentCache.get(persistentCacheKey);
+    if (cachedOnDisk) {
+        // Remettre en cache mémoire pour les prochains appels
+        cache.set(memoryCacheKey, cachedOnDisk);
+        console.log(`📦 Cache hit (disk): ${matchId}`);
+        return cachedOnDisk;
+    }
+
+    // 3. Si pas en cache, récupérer via l'API
     try {
         const url = `https://${ROUTING_REGION}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
         const response = await rateLimiter.execute(() =>
@@ -139,8 +155,14 @@ async function getMatchDetails(matchId) {
             })
         );
 
-        cache.set(cacheKey, response.data);
-        return response.data;
+        const matchData = response.data;
+
+        // 4. Sauvegarder dans les deux caches
+        cache.set(memoryCacheKey, matchData); // Mémoire
+        await persistentCache.set(persistentCacheKey, matchData); // Disque
+
+        console.log(`🌐 API call: ${matchId}`);
+        return matchData;
     } catch (error) {
         if (error.response) {
             throw new Error(`Riot API Error ${error.response.status}: ${error.response.statusText}`);
@@ -152,5 +174,6 @@ async function getMatchDetails(matchId) {
 module.exports = {
     getSummonerByRiotId,
     getMatchHistory,
-    getMatchDetails
+    getMatchDetails,
+    persistentCache // Export pour accès externe (stats, cleanup, etc.)
 };

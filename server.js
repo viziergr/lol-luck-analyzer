@@ -14,6 +14,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Nettoyer le cache au démarrage (supprime les entrées expirées)
+riotApi.persistentCache.cleanup().then(() => {
+    console.log('🧹 Cache cleanup completed');
+});
+
 // Route principale - Servir le fichier HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -176,6 +181,29 @@ app.post('/api/compare', async (req, res) => {
 
     } catch (error) {
         console.error('Error comparing players:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint: Statistiques du cache
+app.get('/api/cache/stats', async (req, res) => {
+    try {
+        const stats = await riotApi.persistentCache.getStats();
+        res.json(stats);
+    } catch (error) {
+        console.error('Error getting cache stats:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint: Nettoyer le cache
+app.post('/api/cache/cleanup', async (req, res) => {
+    try {
+        await riotApi.persistentCache.cleanup();
+        const stats = await riotApi.persistentCache.getStats();
+        res.json({ message: 'Cache cleaned', stats });
+    } catch (error) {
+        console.error('Error cleaning cache:', error.message);
         res.status(500).json({ error: error.message });
     }
 });

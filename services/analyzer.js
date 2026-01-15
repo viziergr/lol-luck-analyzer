@@ -35,12 +35,65 @@ function normalizePerformanceScores(playersWithScores) {
 }
 
 /**
+ * Détecte le rôle d'un joueur basé sur ses stats
+ * @param {Object} playerStats - Statistiques du joueur
+ * @returns {string} - 'SUPPORT', 'JUNGLE', ou 'LANER'
+ */
+function detectRole(playerStats) {
+    if (!config.roleAdjustments.enabled) {
+        return 'LANER';  // Pas d'ajustement si désactivé
+    }
+
+    const detection = config.roleAdjustments.detection;
+    const gameDuration = playerStats.gameDuration || 1800;
+
+    // Calculer CS/min
+    const cs = (playerStats.totalMinionsKilled || 0) + (playerStats.neutralMinionsKilled || 0);
+    const csPerMin = (cs / gameDuration) * 60;
+
+    // Calculer vision/min
+    const visionScore = playerStats.visionScore || 0;
+    const visionPerMin = (visionScore / gameDuration) * 60;
+
+    // Calculer % de neutral CS
+    const neutralCS = playerStats.neutralMinionsKilled || 0;
+    const laneCS = playerStats.totalMinionsKilled || 0;
+    const neutralPercent = cs > 0 ? neutralCS / cs : 0;
+
+    // Détection Support : Très peu de CS + beaucoup de vision
+    if (csPerMin < detection.supportMaxCS && visionPerMin > detection.supportMinVision) {
+        return 'SUPPORT';
+    }
+
+    // Détection Jungle : Beaucoup de neutral CS
+    if (neutralPercent > detection.jungleNeutralPercent) {
+        return 'JUNGLE';
+    }
+
+    // Par défaut : Laner (Top, Mid, ADC)
+    return 'LANER';
+}
+
+/**
  * Calcule le score de performance d'un joueur sur une partie (0-100)
  * Basé sur plusieurs métriques clés configurables
  */
 function calculatePerformanceScore(playerStats) {
     let score = 0;
     const perfConfig = config.performance;
+
+    // Détecter le rôle du joueur
+    const role = detectRole(playerStats);
+    const roleMultipliers = config.roleAdjustments.enabled
+        ? config.roleAdjustments[role] || config.roleAdjustments.LANER
+        : {};
+
+    // Helper pour appliquer le multiplicateur de rôle
+    const applyRoleMultiplier = (baseWeight, metricName) => {
+        if (!config.roleAdjustments.enabled) return baseWeight;
+        const multiplier = roleMultipliers[metricName] || 1.0;
+        return baseWeight * multiplier;
+    };
 
     // 1. KDA Ratio
     const kills = playerStats.kills || 0;
@@ -59,15 +112,17 @@ function calculatePerformanceScore(playerStats) {
     const teamDamage = playerStats.teamTotalDamage || 1;
     const damagePercent = damageDealt / teamDamage;
 
+    const damageWeight = applyRoleMultiplier(perfConfig.damageShare.weight, 'damageShare');
     const damageScore = Math.min(
-        perfConfig.damageShare.weight,
-        (damagePercent / perfConfig.damageShare.perfect) * perfConfig.damageShare.weight
+        damageWeight,
+        (damagePercent / perfConfig.damageShare.perfect) * damageWeight
     );
     score += damageScore;
 
     // 3. Participation aux kills
     const killParticipation = playerStats.challenges?.killParticipation || 0;
-    const participationScore = killParticipation * perfConfig.killParticipation.weight;
+    const kpWeight = applyRoleMultiplier(perfConfig.killParticipation.weight, 'killParticipation');
+    const participationScore = killParticipation * kpWeight;
     score += participationScore;
 
     // 4. Vision Score
@@ -75,9 +130,10 @@ function calculatePerformanceScore(playerStats) {
     const gameDuration = playerStats.gameDuration || 1800; // 30 min par défaut
     const visionPerMin = (visionScore / gameDuration) * 60;
 
+    const visionWeight = applyRoleMultiplier(perfConfig.visionScore.weight, 'visionScore');
     const visionPoints = Math.min(
-        perfConfig.visionScore.weight,
-        (visionPerMin / perfConfig.visionScore.perfectPerMin) * perfConfig.visionScore.weight
+        visionWeight,
+        (visionPerMin / perfConfig.visionScore.perfectPerMin) * visionWeight
     );
     score += visionPoints;
 
@@ -85,9 +141,10 @@ function calculatePerformanceScore(playerStats) {
     const cs = (playerStats.totalMinionsKilled || 0) + (playerStats.neutralMinionsKilled || 0);
     const csPerMin = (cs / gameDuration) * 60;
 
+    const csWeight = applyRoleMultiplier(perfConfig.csPerMin.weight, 'csPerMin');
     const csScore = Math.min(
-        perfConfig.csPerMin.weight,
-        (csPerMin / perfConfig.csPerMin.perfect) * perfConfig.csPerMin.weight
+        csWeight,
+        (csPerMin / perfConfig.csPerMin.perfect) * csWeight
     );
     score += csScore;
 
@@ -95,9 +152,10 @@ function calculatePerformanceScore(playerStats) {
     const gold = playerStats.goldEarned || 0;
     const goldPerMin = (gold / gameDuration) * 60;
 
+    const goldWeight = applyRoleMultiplier(perfConfig.goldPerMin.weight, 'goldPerMin');
     const goldScore = Math.min(
-        perfConfig.goldPerMin.weight,
-        (goldPerMin / perfConfig.goldPerMin.perfect) * perfConfig.goldPerMin.weight
+        goldWeight,
+        (goldPerMin / perfConfig.goldPerMin.perfect) * goldWeight
     );
     score += goldScore;
 
@@ -108,8 +166,9 @@ function calculatePerformanceScore(playerStats) {
     const dragonKills = playerStats.challenges?.dragonKills || 0;
 
     const objConfig = perfConfig.objectives;
+    const objWeight = applyRoleMultiplier(objConfig.weight, 'objectives');
     const objectivesScore = Math.min(
-        objConfig.weight,
+        objWeight,
         (turretKills * objConfig.turretValue +
             inhibitorKills * objConfig.inhibitorValue +
             baronKills * objConfig.baronValue +
