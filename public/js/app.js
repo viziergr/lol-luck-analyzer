@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:3000';
+// Automatically use the same origin as the page (works for localhost and VPS)
+const API_URL = window.location.origin;
 
 // État de l'application
 const state = {
