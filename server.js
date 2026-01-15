@@ -73,10 +73,18 @@ app.post('/api/analyze', async (req, res) => {
             });
         }
 
-        // 3. Récupérer les détails de chaque match
+        // 3. Récupérer les détails de chaque match SEQUENTIELLEMENT (rate limiting)
         console.log(`Fetching ${matchIds.length} matches...`);
-        const matchesPromises = matchIds.map(id => riotApi.getMatchDetails(id));
-        const matches = await Promise.all(matchesPromises);
+        const matches = [];
+        for (let i = 0; i < matchIds.length; i++) {
+            const matchData = await riotApi.getMatchDetails(matchIds[i]);
+            matches.push(matchData);
+
+            // Log progress
+            if ((i + 1) % 5 === 0 || i === matchIds.length - 1) {
+                console.log(`Progress: ${i + 1}/${matchIds.length} matches fetched`);
+            }
+        }
 
         // 4. Analyser les performances
         const analysis = analyzer.analyzePlayer(
@@ -126,8 +134,12 @@ app.post('/api/compare', async (req, res) => {
                     continue;
                 }
 
-                const matchesPromises = matchIds.map(id => riotApi.getMatchDetails(id));
-                const matches = await Promise.all(matchesPromises);
+                // Récupérer les matchs séquentiellement
+                const matches = [];
+                for (const matchId of matchIds) {
+                    const matchData = await riotApi.getMatchDetails(matchId);
+                    matches.push(matchData);
+                }
 
                 const analysis = analyzer.analyzePlayer(
                     `${summoner.gameName}#${summoner.tagLine}`,

@@ -1,8 +1,10 @@
 const axios = require('axios');
 const NodeCache = require('node-cache');
+const RateLimiter = require('./rateLimiter');
 require('dotenv').config();
 
 const cache = new NodeCache({ stdTTL: 600 }); // Cache pendant 10 minutes
+const rateLimiter = new RateLimiter(18); // 18 requêtes/seconde (marge de sécurité)
 
 const RIOT_API_KEY = process.env.RIOT_API_KEY;
 const REGION = process.env.REGION || 'euw1';
@@ -43,19 +45,23 @@ async function getSummonerByRiotId(gameName, tagLine) {
     if (cached) return cached;
 
     try {
-        // Étape 1: Récupérer le PUUID via ACCOUNT-V1
+        // Étape 1: Récupérer le PUUID via ACCOUNT-V1 avec rate limiting
         const accountUrl = `https://${ROUTING_REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
-        const accountResponse = await axios.get(accountUrl, {
-            headers: { 'X-Riot-Token': RIOT_API_KEY }
-        });
+        const accountResponse = await rateLimiter.execute(() =>
+            axios.get(accountUrl, {
+                headers: { 'X-Riot-Token': RIOT_API_KEY }
+            })
+        );
 
         const { puuid, gameName: name, tagLine: tag } = accountResponse.data;
 
-        // Étape 2: Récupérer les infos d'invocateur via SUMMONER-V4
+        // Étape 2: Récupérer les infos d'invocateur via SUMMONER-V4 avec rate limiting
         const summonerUrl = `https://${REGION}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`;
-        const summonerResponse = await axios.get(summonerUrl, {
-            headers: { 'X-Riot-Token': RIOT_API_KEY }
-        });
+        const summonerResponse = await rateLimiter.execute(() =>
+            axios.get(summonerUrl, {
+                headers: { 'X-Riot-Token': RIOT_API_KEY }
+            })
+        );
 
         const result = {
             puuid,
@@ -99,9 +105,11 @@ async function getMatchHistory(puuid, count = 100, startTime = null) {
         // Filtrer uniquement les parties classées (420 = Solo/Duo, 440 = Flex)
         url += '&queue=420'; // On peut aussi ajouter &queue=440 si besoin
 
-        const response = await axios.get(url, {
-            headers: { 'X-Riot-Token': RIOT_API_KEY }
-        });
+        const response = await rateLimiter.execute(() =>
+            axios.get(url, {
+                headers: { 'X-Riot-Token': RIOT_API_KEY }
+            })
+        );
 
         cache.set(cacheKey, response.data);
         return response.data;
@@ -125,9 +133,11 @@ async function getMatchDetails(matchId) {
 
     try {
         const url = `https://${ROUTING_REGION}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
-        const response = await axios.get(url, {
-            headers: { 'X-Riot-Token': RIOT_API_KEY }
-        });
+        const response = await rateLimiter.execute(() =>
+            axios.get(url, {
+                headers: { 'X-Riot-Token': RIOT_API_KEY }
+            })
+        );
 
         cache.set(cacheKey, response.data);
         return response.data;
