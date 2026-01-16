@@ -221,18 +221,68 @@ function displayMatchHistory(matches) {
         const performancePercent = match.playerPerformance;
         const winClass = match.won ? 'win' : 'loss';
         const championIcon = match.championIcon || '';
+        const riotGrade = match.riotGrade ? formatRiotGrade(match.riotGrade) : '';
 
         return `
             <div class="match-item ${winClass}" onclick="showMatchDetails(${index})">
                 ${championIcon ? `<img src="${championIcon}" alt="${match.champion}" class="champion-icon-small" onerror="this.style.display='none'">` : ''}
                 <div class="match-info">
                     <span class="champion-name">${match.champion}</span>
+                    ${riotGrade ? `<span class="riot-grade ${getRiotGradeClass(match.riotGrade)}">${riotGrade}</span>` : ''}
                     <span class="kda">${match.kda}</span>
                 </div>
                 <div class="performance-bar">
                     <div class="performance-fill" style="width: ${performancePercent}%"></div>
                 </div>
                 <span class="performance-score">${performancePercent}/100</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// Afficher les stats par champion
+function displayChampionStats(championStats) {
+    const championStatsContainer = document.getElementById('championStats');
+
+    if (!championStats || championStats.length === 0) {
+        championStatsContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Aucune donnée disponible</p>';
+        return;
+    }
+
+    championStatsContainer.innerHTML = championStats.map(champ => {
+        const winRateColor = champ.winRate >= 60 ? 'var(--success)' :
+            champ.winRate >= 50 ? 'var(--secondary)' :
+                'var(--danger)';
+
+        const perfColor = champ.avgPerformance >= 70 ? 'var(--success)' :
+            champ.avgPerformance >= 50 ? 'var(--secondary)' :
+                'var(--danger)';
+
+        return `
+            <div class="champion-stat-card">
+                <div class="champion-stat-header">
+                    ${champ.championIcon ? `<img src="${champ.championIcon}" alt="${champ.champion}" class="champion-stat-icon" onerror="this.style.display='none'">` : ''}
+                    <div class="champion-stat-name">${champ.champion}</div>
+                    <div class="champion-stat-games">${champ.games} partie${champ.games > 1 ? 's' : ''}</div>
+                </div>
+                <div class="champion-stat-body">
+                    <div class="stat-row">
+                        <span class="stat-label">Winrate</span>
+                        <span class="stat-value" style="color: ${winRateColor}">${champ.winRate}%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">V/D</span>
+                        <span class="stat-value">${champ.wins}W - ${champ.losses}L</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Perf. Moy.</span>
+                        <span class="stat-value" style="color: ${perfColor}">${champ.avgPerformance}/100</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Best/Pire</span>
+                        <span class="stat-value">${champ.bestPerformance}/${champ.worstPerformance}</span>
+                    </div>
+                </div>
             </div>
         `;
     }).join('');
@@ -343,6 +393,28 @@ function hideLoading() {
 function hideResults() {
     resultsSection.style.display = 'none';
     comparisonSection.style.display = 'none';
+}
+
+// Formater le grade Riot (skillScore -> S/A/B/C/D)
+function formatRiotGrade(skillScore) {
+    if (!skillScore) return '';
+
+    // skillScore est un nombre, convertir en lettre
+    if (skillScore >= 9) return 'S';
+    if (skillScore >= 7) return 'A';
+    if (skillScore >= 5) return 'B';
+    if (skillScore >= 3) return 'C';
+    return 'D';
+}
+
+function getRiotGradeClass(skillScore) {
+    if (!skillScore) return '';
+
+    if (skillScore >= 9) return 'grade-s';
+    if (skillScore >= 7) return 'grade-a';
+    if (skillScore >= 5) return 'grade-b';
+    if (skillScore >= 3) return 'grade-c';
+    return 'grade-d';
 }
 
 // Modal functions

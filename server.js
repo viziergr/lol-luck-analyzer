@@ -143,9 +143,13 @@ app.post('/api/analyze', async (req, res) => {
             summoner.puuid
         );
 
+        // 5. Calculer les stats par champion
+        const championStats = analyzer.getChampionStats(analysis.matchHistory);
+
         res.json({
             summoner,
-            analysis
+            analysis,
+            championStats
         });
 
     } catch (error) {

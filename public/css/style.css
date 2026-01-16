@@ -819,3 +819,115 @@ footer p {
     font-weight: 600;
     margin-left: 0.5rem;
 }
+
+/* Champion Stats Grid */
+.champion-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.champion-stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.3s;
+}
+
+.champion-stat-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.champion-stat-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.champion-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    border: 2px solid var(--primary);
+    object-fit: cover;
+}
+
+.champion-stat-name {
+    flex: 1;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.champion-stat-games {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.champion-stat-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+}
+
+.stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Riot Grade Badges */
+.riot-grade {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin: 0 0.5rem;
+}
+
+.grade-s {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #000;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.grade-a {
+    background: #10B981;
+    color: #fff;
+}
+
+.grade-b {
+    background: #0BC5EA;
+    color: #fff;
+}
+
+.grade-c {
+    background: #F59E0B;
+    color: #fff;
+}
+
+.grade-d {
+    background: #EF4444;
+    color: #fff;
+}

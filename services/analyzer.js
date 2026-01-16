@@ -100,11 +100,20 @@ function calculatePerformanceScore(playerStats) {
     const kills = playerStats.kills || 0;
     const deaths = playerStats.deaths || 1; // Éviter division par 0
     const assists = playerStats.assists || 0;
-    const kda = (kills + assists) / deaths;
 
+    // Pour les supports, valoriser davantage les assists
+    let kda;
+    if (role === 'SUPPORT') {
+        const assistWeight = perfConfig.kda.assistWeight || 0.8;
+        kda = (kills + (assists * assistWeight)) / deaths;
+    } else {
+        kda = (kills + assists) / deaths;
+    }
+
+    const kdaWeight = applyRoleMultiplier(perfConfig.kda.weight, 'kda');
     const kdaScore = Math.min(
-        perfConfig.kda.weight,
-        (kda / perfConfig.kda.perfect) * perfConfig.kda.weight
+        kdaWeight,
+        (kda / perfConfig.kda.perfect) * kdaWeight
     );
     score += kdaScore;
 
@@ -113,10 +122,15 @@ function calculatePerformanceScore(playerStats) {
     const teamDamage = playerStats.teamTotalDamage || 1;
     const damagePercent = damageDealt / teamDamage;
 
+    // Pour les supports, utiliser un seuil "parfait" différent
+    const damagePerfect = role === 'SUPPORT' && perfConfig.damageShare.supportPerfect
+        ? perfConfig.damageShare.supportPerfect
+        : perfConfig.damageShare.perfect;
+
     const damageWeight = applyRoleMultiplier(perfConfig.damageShare.weight, 'damageShare');
     const damageScore = Math.min(
         damageWeight,
-        (damagePercent / perfConfig.damageShare.perfect) * damageWeight
+        (damagePercent / damagePerfect) * damageWeight
     );
     score += damageScore;
 
@@ -402,6 +416,7 @@ function analyzePlayer(playerName, matches, puuid) {
             champion: participant.championName,
             championIcon: dataDragon.getChampionIconUrl(participant.championName),
             playerPerformance: performance,
+            riotGrade: participant.challenges?.skillScore || null,  // Grade Riot (0-10 → S/A/B/C/D)
             won,
             kda: `${participant.kills}/${participant.deaths}/${participant.assists}`,
             teammates,
@@ -430,9 +445,55 @@ function analyzePlayer(playerName, matches, puuid) {
     };
 }
 
+/**
+ * Agrège les statistiques par champion
+ * @param {Array} matchHistory - Historique des matchs
+ * @returns {Array} Statistiques par champion
+ */
+function getChampionStats(matchHistory) {
+    const championMap = {};
+
+    matchHistory.forEach(match => {
+        const champion = match.champion;
+
+        if (!championMap[champion]) {
+            championMap[champion] = {
+                champion: champion,
+                championIcon: match.championIcon,
+                games: 0,
+                wins: 0,
+                totalPerformance: 0,
+                performances: []
+            };
+        }
+
+        championMap[champion].games++;
+        if (match.won) championMap[champion].wins++;
+        championMap[champion].totalPerformance += match.playerPerformance;
+        championMap[champion].performances.push(match.playerPerformance);
+    });
+
+    // Calculer les moyennes et formater
+    const championStats = Object.values(championMap).map(champ => ({
+        champion: champ.champion,
+        championIcon: champ.championIcon,
+        games: champ.games,
+        wins: champ.wins,
+        losses: champ.games - champ.wins,
+        winRate: Math.round((champ.wins / champ.games) * 100),
+        avgPerformance: Math.round(champ.totalPerformance / champ.games),
+        bestPerformance: Math.max(...champ.performances),
+        worstPerformance: Math.min(...champ.performances)
+    }));
+
+    // Trier par nombre de parties (décroissant)
+    return championStats.sort((a, b) => b.games - a.games);
+}
+
 module.exports = {
     calculatePerformanceScore,
     calculateLuckScore,
     generateLeaderboard,
-    analyzePlayer
+    analyzePlayer,
+    getChampionStats
 };

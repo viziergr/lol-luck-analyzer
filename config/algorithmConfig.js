@@ -15,23 +15,25 @@ module.exports = {
     performance: {
         // KDA Ratio - Mesure l'efficacité en combat
         kda: {
-            weight: 20,
+            weight: 18,              // Réduit de 20 à 18 (moins important pour supports)
             perfect: 10,
-            description: 'Ratio (Kills + Assists) / Deaths. Un KDA de 10+ est exceptionnel'
+            assistWeight: 0.8,       // NOUVEAU : Poids des assists dans le KDA (80% d'un kill)
+            description: 'Ratio (Kills + Assists) / Deaths. Pour supports : assists = 80% d\'un kill'
         },
 
         // Dégâts aux champions - Contribution offensive
         damageShare: {
-            weight: 20,
+            weight: 18,              // Réduit de 20 à 18
             perfect: 0.30,
-            description: 'Pourcentage des dégâts totaux de l\\'équipe'
+            supportPerfect: 0.12,    // NOUVEAU : 12% des dégâts = excellent pour support
+            description: 'Pourcentage des dégâts totaux de l\'équipe. Supports : 10-15% est normal'
         },
 
         // Kill Participation - Présence dans les combats
         killParticipation: {
-            weight: 15,
+            weight: 17,              // Augmenté de 15 à 17 (plus important pour supports)
             perfect: 1.0,
-            description: 'Participation aux kills de l\\'équipe. 75% + est très bon'
+            description: 'Participation aux kills de l\'équipe. Crucial pour supports (assists comptent !)'
         },
 
         // Vision Score - Contrôle de la map
@@ -113,22 +115,23 @@ module.exports = {
         },
 
         SUPPORT: {
-            csPerMin: 0.2,
-            goldPerMin: 0.6,
-            damageShare: 0.7,
-            visionScore: 1.8,
-            killParticipation: 1.3,
-            objectives: 1.2,
-            goldDiff15: 0.5,      // Gold diff moins pertinent (duo lane)
-            xpDiff15: 0.3         // XP diff très peu pertinent
+            kda: 0.9,                // KDA légèrement moins important (90%)
+            csPerMin: 0.15,          // CS presque ignoré (15% d'importance)
+            goldPerMin: 0.5,         // Or moins important
+            damageShare: 0.5,        // Dégâts beaucoup moins importants
+            visionScore: 2.0,        // Vision TRÈS importante
+            killParticipation: 1.5,  // Présence très importante
+            objectives: 1.3,         // Objectifs importants
+            goldDiff15: 0.3,         // Gold diff peu pertinent
+            xpDiff15: 0.2            // XP diff très peu pertinent
         },
         JUNGLE: {
             csPerMin: 0.6,
             visionScore: 1.4,
             objectives: 1.6,
             killParticipation: 1.2,
-            goldDiff15: 0.4,      // Pas vraiment de lane opponent
-            xpDiff15: 0.3         // Pas de lane phase
+            goldDiff15: 0.4,
+            xpDiff15: 0.3
         },
         LANER: {
             csPerMin: 1.0,
@@ -137,8 +140,8 @@ module.exports = {
             visionScore: 1.0,
             killParticipation: 1.0,
             objectives: 1.0,
-            goldDiff15: 1.3,      // TRÈS important pour laners !
-            xpDiff15: 1.2         // Important pour laners
+            goldDiff15: 1.3,
+            xpDiff15: 1.2
         }
     }
 };
