@@ -205,6 +205,7 @@ function displayResults(data) {
     document.getElementById('winRate').textContent = analysis.winRate;
     document.getElementById('carriedWins').textContent = analysis.luckStats.carriedWins;
     document.getElementById('carriedLosses').textContent = analysis.luckStats.carriedLosses;
+    document.getElementById('oneVsNine').textContent = analysis.luckStats.oneVsNineLosses || 0;
 
     // Match history
     displayMatchHistory(analysis.matchHistory);
@@ -286,6 +287,22 @@ function displayChampionStats(championStats) {
             </div>
         `;
     }).join('');
+}
+
+// Filtrer l'historique par champions sélectionnés
+function filterByChampion() {
+    const checkboxes = document.querySelectorAll('.champion-checkbox:checked');
+
+    if (checkboxes.length === 0) {
+        // Aucun filtre, afficher tout
+        displayMatchHistory(state.matchHistory);
+    } else {
+        // Filtrer par champions cochés
+        const selectedChampions = Array.from(checkboxes).map(cb => {
+            return cb.id.replace('champ-', '');
+        });
+        displayMatchHistory(state.matchHistory, selectedChampions);
+    }
 }
 
 // Afficher la comparaison de plusieurs joueurs

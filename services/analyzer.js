@@ -249,6 +249,19 @@ function calculateLuckScore(matchHistory) {
 
         if (isBadPerf) badPerformances++;
 
+        // NOUVEAU : Détecter les parties 1v9 perdues
+        // Si défaite ET au moins 25 points de plus que le 2ème de la team
+        if (!won && teammatesPerf.length > 0) {
+            const secondBestTeammate = Math.max(...teammatesPerf);
+            const diffVsSecondBest = playerPerf - secondBestTeammate;
+
+            // Si au moins 25 points de plus que le 2ème meilleur
+            if (diffVsSecondBest >= 25) {
+                stats.oneVsNineLosses++;
+                luckScore += scenarios.carryingLoss * 2; // Double malchance !
+            }
+        }
+
         // Cas 1: Bonne perf + Défaite = Malchanceux
         if (isGoodPerf && !won) {
             luckScore += scenarios.goodPerfLoss;
