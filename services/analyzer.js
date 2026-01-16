@@ -1,6 +1,7 @@
 // Importer la configuration de l'algorithme
 // Vous pouvez modifier les paramètres dans config/algorithmConfig.js
 const config = require('../config/algorithmConfig');
+const dataDragon = require('./dataDragon');
 
 /**
  * Normalise les scores de performance d'une partie (Min-Max)
@@ -399,6 +400,7 @@ function analyzePlayer(playerName, matches, puuid) {
         matchHistory.push({
             matchId: matchData.metadata.matchId,
             champion: participant.championName,
+            championIcon: dataDragon.getChampionIconUrl(participant.championName),
             playerPerformance: performance,
             won,
             kda: `${participant.kills}/${participant.deaths}/${participant.assists}`,

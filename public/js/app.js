@@ -220,9 +220,11 @@ function displayMatchHistory(matches) {
     matchHistory.innerHTML = matches.slice(0, 15).map((match, index) => {
         const performancePercent = match.playerPerformance;
         const winClass = match.won ? 'win' : 'loss';
+        const championIcon = match.championIcon || '';
 
         return `
             <div class="match-item ${winClass}" onclick="showMatchDetails(${index})">
+                ${championIcon ? `<img src="${championIcon}" alt="${match.champion}" class="champion-icon-small" onerror="this.style.display='none'">` : ''}
                 <div class="match-info">
                     <span class="champion-name">${match.champion}</span>
                     <span class="kda">${match.kda}</span>
@@ -405,12 +407,15 @@ function renderPlayerRow(player, currentMatch) {
         ? ((player.kills + player.assists) / player.deaths).toFixed(2)
         : (player.kills + player.assists).toFixed(2);
 
+    const championIconUrl = `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/${player.champion}.png`;
+
     return `
         <div class="player-row ${isCurrentPlayer ? 'highlight' : ''}">
+            <img src="${championIconUrl}" alt="${player.champion}" class="player-champion-icon" onerror="this.style.display='none'">
             <div class="player-champion">${player.champion}</div>
             <div class="player-name">
                 ${player.summonerName}${player.tagLine ? '#' + player.tagLine : ''}
-                ${isCurrentPlayer ? '(Vous)' : ''}
+                ${isCurrentPlayer ? '<span class="you-badge">(Vous)</span>' : ''}
             </div>
             <div class="player-stats">
                 <span title="KDA">${kda}</span>

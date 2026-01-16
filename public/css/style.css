@@ -788,3 +788,34 @@ footer p {
 .match-item:hover::after {
     opacity: 1;
 }
+
+/* Champion Icons */
+.champion-icon-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    margin-right: 0.75rem;
+    object-fit: cover;
+}
+
+.player-champion-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    margin-right: 0.5rem;
+    object-fit: cover;
+    transition: all 0.3s;
+}
+
+.player-row:hover .player-champion-icon {
+    border-color: var(--primary);
+    transform: scale(1.05);
+}
+
+.you-badge {
+    color: var(--primary);
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
