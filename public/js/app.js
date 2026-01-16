@@ -209,23 +209,43 @@ function displayResults(data) {
 
     // Match history
     displayMatchHistory(analysis.matchHistory);
+
+    // Champion stats - Récupérer depuis data.championStats
+    if (data.championStats) {
+        displayChampionStats(data.championStats, analysis.matchHistory);
+    }
 }
 
 // Afficher l'historique des matchs
-function displayMatchHistory(matches) {
+function displayMatchHistory(matches, championFilter = null) {
     const matchHistory = document.getElementById('matchHistory');
 
     // Stocker l'historique dans le state pour le modal
-    state.matchHistory = matches;
+    if (!championFilter) {
+        state.matchHistory = matches;
+    }
 
-    matchHistory.innerHTML = matches.slice(0, 15).map((match, index) => {
+    // Filtrer par champion si spécifié
+    let filteredMatches = matches;
+    if (championFilter && championFilter.length > 0) {
+        filteredMatches = matches.filter(m => championFilter.includes(m.champion));
+    }
+
+    if (filteredMatches.length === 0) {
+        matchHistory.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">Aucune partie trouvée pour ce filtre</p>';
+        return;
+    }
+
+    matchHistory.innerHTML = filteredMatches.slice(0, 50).map((match) => {
+        // Trouver l'index original dans matches pour le modal
+        const originalIndex = state.matchHistory.indexOf(match);
         const performancePercent = match.playerPerformance;
         const winClass = match.won ? 'win' : 'loss';
         const championIcon = match.championIcon || '';
         const riotGrade = match.riotGrade ? formatRiotGrade(match.riotGrade) : '';
 
         return `
-            <div class="match-item ${winClass}" onclick="showMatchDetails(${index})">
+            <div class="match-item ${winClass}" onclick="showMatchDetails(${originalIndex})">
                 ${championIcon ? `<img src="${championIcon}" alt="${match.champion}" class="champion-icon-small" onerror="this.style.display='none'">` : ''}
                 <div class="match-info">
                     <span class="champion-name">${match.champion}</span>

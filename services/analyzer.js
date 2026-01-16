@@ -224,6 +224,11 @@ function calculateLuckScore(matchHistory) {
     let carriedWins3 = 0;     // Victoires où il était faible
     let badPerformances = 0;  // Mauvaises performances totales
 
+    // FIXED: Initialiser stats ici
+    const stats = {
+        oneVsNineLosses: 0
+    };
+
     const luckConfig = config.luck;
     const thresholds = luckConfig.thresholds;
     const scenarios = luckConfig.scenarios;
